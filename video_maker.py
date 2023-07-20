@@ -1,6 +1,8 @@
 import cv2
 import os.path
 
+# Works with version opencv-python == 3.4.8.29
+# Write: pip install opencv-python==3.4.8.29
 
 def build_video(image_folder, name_of_image):
     index = 0
