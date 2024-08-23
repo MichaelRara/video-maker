@@ -28,4 +28,28 @@ def build_video(image_folder: str,
     video.release()
 
 
-build_video('C:/Users/A200179575/Python_Projects/personal/video_maker', 'Chessboard_', "jpg", 1, "chessboard_moves")
+def split_video_to_frames(frame_output_format: str, path_to_video: str) -> None:
+    """Split video into individual frames.
+
+    Args:
+        frame_output_format (str): Format of output frames. (jpg, png, bmp etc...)
+        path_to_video (str): Absolute path to input video.
+    """
+    cap = cv2.VideoCapture(path_to_video)
+    frame_index = 0
+    success, frame = cap.read()
+    while success:  # Capture frame-by-frame
+        cv2.imwrite('./frame_' + str(frame_index) + "." + frame_output_format, frame)
+        frame_index += 1
+        success, frame = cap.read()
+
+
+if __name__ == "__main__":
+    split_video_to_frames(frame_output_format="jpg",
+                          path_to_video='C:/Users/A200179575/Python_Projects/personal/video_maker/chessboard_moves.avi')
+
+    build_video(image_folder='C:/Users/A200179575/Python_Projects/personal/video_maker',
+                prefix_of_image_name='Chessboard_',
+                image_format="jpg",
+                frames_per_second=1,
+                name_of_output_video="chessboard_moves")
