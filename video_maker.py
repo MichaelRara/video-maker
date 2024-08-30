@@ -1,6 +1,8 @@
 from typing import List
 
 import os.path
+import os
+
 import cv2
 import numpy as np
 
@@ -132,6 +134,27 @@ def create_rgb_image(width: int, height: int) -> Image:
     return img.new("RGB", (width, height), "white")
 
 
+def denoise_image(frames_to_remove_noise: List[Image]) -> None:
+    """Accepts list of original grayscale frames and remove noise out of them. Output frames are saved into current
+    working directory.
+
+    This method is used for noise removing.
+    https://docs.opencv.org/4.x/d1/d79/group__photo__denoise.html#ga723ffde1969430fede9241402e198151
+
+    Args:
+        frames_to_remove_noise (List[Image]): List of frames to remove noise from.
+    """
+    for i in range(2, len(frames_to_remove_noise) - 1):
+        denoised_frame = cv2.fastNlMeansDenoisingMulti(srcImgs=frames_to_remove_noise,
+                                                       imgToDenoiseIndex=i,
+                                                       temporalWindowSize=5,
+                                                       dst=None,
+                                                       templateWindowSize=4,
+                                                       searchWindowSize=7,
+                                                       h=35)
+        cv2.imwrite("DenoisedFrame_" + str(i) + ".png", denoised_frame)
+
+
 def get_brightness_of_pixel(image: Image, width_position: int, height_position: int) -> int:
     """Get brightness of a pixel from provided RGB image.
 
@@ -192,39 +215,75 @@ def make_grayscale_image_sharper(image: Image) -> Image:
     return img.fromarray(output_sharpen_image.astype("uint8"))
 
 
-def split_video_to_frames(frame_output_format: str, path_to_video: str) -> None:
+def put_images_side_by_side(image_folder: str,
+                            name_of_left_frame: str,
+                            name_of_right_frame: str,
+                            index: int,
+                            img_format: str,
+                            directory_for_results: str) -> None:
+    """Concatenate two set of images side by side. The images should have the same height and width and amount of
+    channels. Results are stored into current working directory.
+
+    Args:
+        image_folder (str): Name of folder where images are stored.
+        name_of_left_frame (str): Name of image to placed on a left side of resulting image.
+        name_of_right_frame (str): Name of image to placed on a right side of resulting image.
+        index (int): Starting index of image.
+        img_format (str): Format of input images. Must be same for left and right image.
+        directory_for_results (str): Create directory where output frames are stored.
+    """
+    os.mkdir(directory_for_results)
+    while os.path.isfile(image_folder + "/" + name_of_left_frame + str(index) + "." + img_format):
+        original_frame = cv2.imread(os.path.join(image_folder, name_of_left_frame
+                                                 + str(index)
+                                                 + "."
+                                                 + img_format))
+        upgraded_frame = cv2.imread(os.path.join(image_folder, name_of_right_frame
+                                                 + str(index)
+                                                 + "."
+                                                 + img_format))
+        concatenated_frame = np.concatenate((original_frame, upgraded_frame), axis=1)
+        cv2.imwrite(directory_for_results + "/" + 'parallel_frames_' + str(index) + "." + img_format,
+                    concatenated_frame)
+        index += 1
+
+
+def split_video_to_frames(directory_for_results: str, frame_output_format: str, path_to_video: str) -> None:
     """Split video into individual frames.
 
     Args:
+        directory_for_results (str): Create directory where output frames are stored.
         frame_output_format (str): Format of output frames. (jpg, png, bmp etc...)
         path_to_video (str): Absolute path to input video.
     """
     cap = cv2.VideoCapture(path_to_video)
     frame_index = 0
     success, frame = cap.read()
+    os.mkdir(directory_for_results)
     while success:  # Capture frame-by-frame
-        cv2.imwrite('./frame_' + str(frame_index) + "." + frame_output_format, frame)
+        cv2.imwrite(directory_for_results + '/frame_' + str(frame_index) + "." + frame_output_format, frame)
         frame_index += 1
         success, frame = cap.read()
 
 
 def main() -> None:
-    split_video_to_frames(frame_output_format="jpg",
-                          path_to_video='C:/Users/A200179575/Python_Projects/personal/video_maker/chessboard_moves.avi')
-
-    build_video(image_folder='C:/Users/A200179575/Python_Projects/personal/video_maker',
+    build_video(image_folder='Chessboard_images',
                 prefix_of_image_name='Chessboard_',
-                image_format="jpg",
+                image_format="png",
                 frames_per_second=1,
                 name_of_output_video="chessboard_moves")
+
+    split_video_to_frames("chess_video",
+                          frame_output_format="png",
+                          path_to_video='C:/Users/A200179575/Python_Projects/personal/video_maker/chessboard_moves.avi')
+
     interpolated_images = interpolate_images(img.open("Chessboard_0.png"), img.open("Chessboard_1.png"), 10)
     for img_index, image in enumerate(interpolated_images):
         image.save("interpolated_img_" + str(img_index) + ".png")
 
 
 if __name__ == "__main__":
-    a = convert_rgb_image_to_grayscale_image(img.open("lachtan.jpg"))
+    put_images_side_by_side("Chessboard_images", "Chessboard_", "Chessboard_", 0, "png", "Parallel_images")
+    #a = convert_rgb_image_to_grayscale_image(img.open("lachtan.jpg"))
     #a.show()
-    b = make_grayscale_image_sharper(a)
-    b.show()
-    main()
+    #b = make_grayscale_image_sharper(a)
