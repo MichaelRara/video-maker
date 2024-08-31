@@ -208,10 +208,28 @@ def interpolate_images(start_image: Image, end_image: Image, amount_of_interpola
     interpolation_step = pixels_of_difference_image/(amount_of_interpolated_images+1)
     interpolated_images = []
     for amount_of_steps in range(1, amount_of_interpolated_images+1):
-        interpolated_image = img.fromarray((pixels_of_start_image + amount_of_steps*interpolation_step).astype("uint8"),
-                                           'RGB')
+        interpolated_image = img.fromarray((pixels_of_start_image + amount_of_steps*interpolation_step).astype("uint8"))
         interpolated_images.append(interpolated_image)
     return interpolated_images
+
+
+def interpolate_sequence_of_images(directory_for_results: str, folder_of_input_frames: str, image_prefix: str) -> None:
+    os.mkdir(directory_for_results)
+    output_image_sequence = []
+    start_index = 2
+    end_index = 11
+    for i in range(start_index, end_index):
+        actual_frame = img.open(folder_of_input_frames + "/" + image_prefix + str(i) + ".png")
+        next_frame = img.open(folder_of_input_frames + "/" + image_prefix + str(i+1) + ".png")
+        output_image_sequence += [actual_frame]
+        interpolated_images = interpolate_images(start_image=actual_frame,
+                                                 end_image=next_frame,
+                                                 amount_of_interpolated_images=10)
+        output_image_sequence += interpolated_images
+    output_image_sequence += [img.open(folder_of_input_frames + "/" + image_prefix + str(end_index) + ".png")]
+
+    for i, image in enumerate(output_image_sequence):
+        image.save(directory_for_results + "/final_frame_" + str(i) + ".png")
 
 
 def make_grayscale_image_sharper(image: Image) -> Image:
@@ -237,7 +255,7 @@ def make_grayscale_image_sharper(image: Image) -> Image:
 
 
 def make_grayscale_image_sharper_in_selected_pixels(image: Image,
-                                                    pixels_to_sharper: List) -> Image:
+                                                    pixels_to_sharper: List[List[int]]) -> Image:
     """Sharper input image in selected pixels if it is possible.
 
     Args:
@@ -362,6 +380,9 @@ def main() -> None:
                                                 image_prefix="denoised_frame_",
                                                 threshold_of_significance=0.9,
                                                 min_value_of_significant_edge=200)
+    interpolate_sequence_of_images(directory_for_results="final_frames",
+                                   folder_of_input_frames="enhanced_images",
+                                   image_prefix="enhanced_image_")
 
     interpolated_images = interpolate_images(img.open("Chessboard_0.png"), img.open("Chessboard_1.png"), 10)
     for img_index, image in enumerate(interpolated_images):
