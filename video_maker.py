@@ -214,6 +214,13 @@ def interpolate_images(start_image: Image, end_image: Image, amount_of_interpola
 
 
 def interpolate_sequence_of_images(directory_for_results: str, folder_of_input_frames: str, image_prefix: str) -> None:
+    """Create smoother sequence of provided images by interpolating them.
+
+    Args:
+        directory_for_results (str): Directory where output are stored.
+        folder_of_input_frames (str): Directory where input files are read from.
+        image_prefix (str): Prefix of input images.
+    """
     os.mkdir(directory_for_results)
     output_image_sequence = []
     start_index = 2
