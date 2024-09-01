@@ -149,6 +149,31 @@ def create_rgb_image(width: int, height: int) -> Image:
     return img.new("RGB", (width, height), "white")
 
 
+def create_sequence_of_frames_of_edge_detection(name_of_input_folder: str,
+                                                prefix_of_input_image: str,
+                                                name_of_output_folder: str,
+                                                prefix_of_output_image: str,
+                                                amount_of_original_frames: int,
+                                                threshold_of_significance: float):
+    """Create a sequence of frames where edges are visualized.
+
+    Args:
+        name_of_input_folder (str): Name of folder with input images.
+        prefix_of_input_image (str): Prefix of input images.
+        name_of_output_folder (str): Name of folder where results are stored.
+        prefix_of_output_image (str): Prefix of output images.
+        amount_of_original_frames (int): Amount of original frames.
+        threshold_of_significance (float): Defines what percentage of maximum value of gradient in image will be set to
+                                           max brightness value 255. Must be higher than 0 and lower or equal to one.
+    """
+    os.mkdir(name_of_output_folder)
+    for i in range(0, amount_of_original_frames):
+        original_frame = img.open(name_of_input_folder + "/" + prefix_of_input_image + str(i) + ".png")
+        original_frame_grayscale = convert_rgb_image_to_grayscale_image(original_frame)
+        edges_frame = calculate_gradient_of_grayscale_image(original_frame_grayscale, threshold_of_significance)
+        edges_frame.save(name_of_output_folder + "/" + prefix_of_output_image + str(i) + ".png")
+
+
 def denoise_video(path_to_video: str, directory_for_results: str, image_prefix_of_denoised_frames: str) -> None:
     """Iterates through every frame of input video and suppress noise in it.
     First two frames are not returned and last two frames are not returned.
@@ -377,8 +402,8 @@ def sharper_frames_along_most_significant_edges(directory_for_results: str,
         directory_for_results (str): Folder where output of this method are stored.
         folder_of_input_frames (str): Folder where inputs are uploaded.
         image_prefix (str): Prefix name of image to process.
-        threshold_of_significance (float): Defines the percentage of value of max gradient. Pixels with this value will
-            have maximum value of brightness 255.
+        threshold_of_significance (float): Defines the percentage of value of max gradient. Pixels with this value of
+            brightness or higher will have maximum value of brightness 255.
         min_value_of_significant_edge (int): Edges with brightness with value higher than is specified by this parameter
             will be considered significant.
         amount_of_original_frames (int): Amount of original frames.
@@ -424,15 +449,17 @@ def main() -> None:
     dir_for_sharpened_images = "enhanced_images"
     dir_for_final_frames = "final_frames"
     dir_for_parallel_frames = "parallel_frames"
+    dir_for_frames_edges = "frames_edges"
 
     image_prefix_of_original_frames = "original_frame_"
     image_prefix_of_denoised_frames = "denoised_frame_"
     image_prefix_of_enhanced_image = "enhanced_image_"
     image_prefix_of_parallel_frames = "parallel_frames_"
     image_prefix_of_final_image = "final_frame_"
+    image_prefix_of_edges_images = "edges_frame_"
 
-    amount_of_interpolated_frames = 100
-
+    amount_of_interpolated_frames = 150
+    """
     amount_of_original_frames = split_video_to_frames(directory_for_results=dir_for_frames_of_input_video,
                                                       path_to_video=path_to_input_video,
                                                       image_prefix=image_prefix_of_original_frames)
@@ -444,8 +471,8 @@ def main() -> None:
     sharper_frames_along_most_significant_edges(directory_for_results=dir_for_sharpened_images,
                                                 folder_of_input_frames=dir_for_denoised_frames,
                                                 image_prefix=image_prefix_of_denoised_frames,
-                                                threshold_of_significance=0.9,
-                                                min_value_of_significant_edge=200,
+                                                threshold_of_significance=0.6,
+                                                min_value_of_significant_edge=100,
                                                 amount_of_original_frames=amount_of_original_frames)
 
     interpolate_sequence_of_images(directory_for_results=dir_for_final_frames,
@@ -463,14 +490,33 @@ def main() -> None:
                             amount_of_interpolated_frames=amount_of_interpolated_frames,
                             directory_for_results=dir_for_parallel_frames,
                             image_prefix=image_prefix_of_parallel_frames)
-
     build_video(image_folder=dir_for_parallel_frames,
                 prefix_of_image_name=image_prefix_of_parallel_frames,
                 image_format="png",
-                frames_per_second=53,
+                frames_per_second=int(17667/24),
                 name_of_output_video="input_output_video",
                 start_index=2)
-
+    """
+    """
+    create_sequence_of_frames_of_edge_detection(name_of_input_folder=dir_for_frames_of_input_video,
+                                                prefix_of_input_image=image_prefix_of_original_frames,
+                                                name_of_output_folder=dir_for_frames_edges,
+                                                prefix_of_output_image=image_prefix_of_edges_images,
+                                                amount_of_original_frames=122,
+                                                threshold_of_significance=0.4)
+    build_video(image_folder=dir_for_frames_edges,
+                prefix_of_image_name=image_prefix_of_edges_images,
+                image_format="png",
+                frames_per_second=5,
+                name_of_output_video="video_of_edges",
+                start_index=0)
+    """
+    build_video(image_folder=dir_for_final_frames,
+                prefix_of_image_name=image_prefix_of_final_image,
+                image_format="png",
+                frames_per_second=int(17667/24),
+                name_of_output_video="output_video",
+                start_index=2)
 
 if __name__ == "__main__":
     main()
