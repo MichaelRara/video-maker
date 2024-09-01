@@ -215,8 +215,8 @@ def get_brightness_of_pixel(image: Image, width_position: int, height_position: 
     Returns:
         int: Brightness of a selected pixel in provided image.
     """
-    R, G, B = image.getpixel((width_position, height_position))
-    return int(sum([R, G, B])/3)
+    r, g, b = image.getpixel((width_position, height_position))
+    return int(sum([r, g, b])/3)
 
 
 def interpolate_images(start_image: Image, end_image: Image, amount_of_interpolated_images: int = 100) -> List[Image]:
@@ -363,11 +363,11 @@ def put_images_side_by_side(image_folder_for_original_images: str,
 
 
 def put_images_side_by_side_initial(image_folder: str,
-                            name_of_left_frame: str,
-                            name_of_right_frame: str,
-                            index: int,
-                            img_format: str,
-                            directory_for_results: str) -> None:
+                                    name_of_left_frame: str,
+                                    name_of_right_frame: str,
+                                    index: int,
+                                    img_format: str,
+                                    directory_for_results: str) -> None:
     """Concatenate two set of images side by side. The images should have the same height and width and amount of
     channels. Results are stored into current working directory.
 
@@ -405,7 +405,7 @@ def sharper_frames_along_most_significant_edges(directory_for_results: str,
         threshold_of_significance (float): Defines the percentage of value of max gradient. Pixels with this value of
             brightness or higher will have maximum value of brightness 255.
         min_value_of_significant_edge (int): Edges with brightness with value higher than is specified by this parameter
-            will be considered significant.
+            will be considered significant and used for sharpening.
         amount_of_original_frames (int): Amount of original frames.
     """
     os.mkdir(directory_for_results)
@@ -459,7 +459,7 @@ def main() -> None:
     image_prefix_of_edges_images = "edges_frame_"
 
     amount_of_interpolated_frames = 150
-    """
+
     amount_of_original_frames = split_video_to_frames(directory_for_results=dir_for_frames_of_input_video,
                                                       path_to_video=path_to_input_video,
                                                       image_prefix=image_prefix_of_original_frames)
@@ -471,8 +471,8 @@ def main() -> None:
     sharper_frames_along_most_significant_edges(directory_for_results=dir_for_sharpened_images,
                                                 folder_of_input_frames=dir_for_denoised_frames,
                                                 image_prefix=image_prefix_of_denoised_frames,
-                                                threshold_of_significance=0.6,
-                                                min_value_of_significant_edge=100,
+                                                threshold_of_significance=1,
+                                                min_value_of_significant_edge=50,
                                                 amount_of_original_frames=amount_of_original_frames)
 
     interpolate_sequence_of_images(directory_for_results=dir_for_final_frames,
@@ -496,8 +496,7 @@ def main() -> None:
                 frames_per_second=int(17667/24),
                 name_of_output_video="input_output_video",
                 start_index=2)
-    """
-    """
+
     create_sequence_of_frames_of_edge_detection(name_of_input_folder=dir_for_frames_of_input_video,
                                                 prefix_of_input_image=image_prefix_of_original_frames,
                                                 name_of_output_folder=dir_for_frames_edges,
@@ -510,13 +509,14 @@ def main() -> None:
                 frames_per_second=5,
                 name_of_output_video="video_of_edges",
                 start_index=0)
-    """
+
     build_video(image_folder=dir_for_final_frames,
                 prefix_of_image_name=image_prefix_of_final_image,
                 image_format="png",
                 frames_per_second=int(17667/24),
                 name_of_output_video="output_video",
                 start_index=2)
+
 
 if __name__ == "__main__":
     main()
