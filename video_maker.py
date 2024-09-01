@@ -14,7 +14,8 @@ def build_video(image_folder: str,
                 prefix_of_image_name: str,
                 image_format: str,
                 frames_per_second: int,
-                name_of_output_video: str) -> None:
+                name_of_output_video: str,
+                start_index: int) -> None:
     """This method can build a video from a set of images. Images must start with the same prefix, have the same data
     format and be sorted by sequence of indexes. Output is a video created from provided images and save in avi format.
 
@@ -23,9 +24,10 @@ def build_video(image_folder: str,
         prefix_of_image_name (str): Prefix of names of images.
         image_format (str): Data format of stored images. Example: jpg, png, bmp etc...
         frames_per_second (int): Defines amount of frames per second in output video.
-        name_of_output_video (str): Name of output video. Example: my_output_video
+        name_of_output_video (str): Name of output video. Example: my_output_video.
+        start_index (int): Index of the first frame.
     """
-    index = 0
+    index = start_index
     frame = cv2.imread(os.path.join(image_folder, prefix_of_image_name + str(index) + '.' + image_format))
     height, width, _ = frame.shape
     video = cv2.VideoWriter(name_of_output_video + ".avi", 0, frames_per_second, (width, height))
@@ -147,7 +149,7 @@ def create_rgb_image(width: int, height: int) -> Image:
     return img.new("RGB", (width, height), "white")
 
 
-def denoise_video(path_to_video: str, directory_for_results: str) -> None:
+def denoise_video(path_to_video: str, directory_for_results: str, image_prefix_of_denoised_frames: str) -> None:
     """Iterates through every frame of input video and suppress noise in it.
     First two frames are not returned and last two frames are not returned.
 
@@ -157,6 +159,7 @@ def denoise_video(path_to_video: str, directory_for_results: str) -> None:
     Args:
         path_to_video (str): Path to video to remove noise from.
         directory_for_results (str): Name of folder where frames with suppress noise are stored.
+        image_prefix_of_denoised_frames (str): Prefix of denoised frames.
     """
     cap = cv2.VideoCapture(path_to_video)
     success, frame = cap.read()
@@ -173,7 +176,7 @@ def denoise_video(path_to_video: str, directory_for_results: str) -> None:
                                                        templateWindowSize=5,
                                                        searchWindowSize=7,
                                                        h=35)
-        cv2.imwrite(directory_for_results+"/denoised_frame_" + str(i) + ".png", denoised_frame)
+        cv2.imwrite(directory_for_results + "/" + image_prefix_of_denoised_frames + str(i) + ".png", denoised_frame)
 
 
 def get_brightness_of_pixel(image: Image, width_position: int, height_position: int) -> int:
@@ -213,30 +216,38 @@ def interpolate_images(start_image: Image, end_image: Image, amount_of_interpola
     return interpolated_images
 
 
-def interpolate_sequence_of_images(directory_for_results: str, folder_of_input_frames: str, image_prefix: str) -> None:
+def interpolate_sequence_of_images(directory_for_results: str,
+                                   folder_of_input_frames: str,
+                                   input_image_prefix: str,
+                                   output_image_prefix: str,
+                                   amount_of_interpolated_images: int,
+                                   amount_of_original_frames: int) -> None:
     """Create smoother sequence of provided images by interpolating them.
 
     Args:
         directory_for_results (str): Directory where output are stored.
         folder_of_input_frames (str): Directory where input files are read from.
-        image_prefix (str): Prefix of input images.
+        input_image_prefix (str): Prefix of input images.
+        output_image_prefix (str): Prefix of output images.
+        amount_of_interpolated_images (int): Amount of interpolated frames.
+        amount_of_original_frames (int): Amount of original frames to use for interpolation.
     """
     os.mkdir(directory_for_results)
     output_image_sequence = []
     start_index = 2
-    end_index = 11
+    end_index = amount_of_original_frames - 3
     for i in range(start_index, end_index):
-        actual_frame = img.open(folder_of_input_frames + "/" + image_prefix + str(i) + ".png")
-        next_frame = img.open(folder_of_input_frames + "/" + image_prefix + str(i+1) + ".png")
+        actual_frame = img.open(folder_of_input_frames + "/" + input_image_prefix + str(i) + ".png")
+        next_frame = img.open(folder_of_input_frames + "/" + input_image_prefix + str(i+1) + ".png")
         output_image_sequence += [actual_frame]
         interpolated_images = interpolate_images(start_image=actual_frame,
                                                  end_image=next_frame,
-                                                 amount_of_interpolated_images=10)
+                                                 amount_of_interpolated_images=amount_of_interpolated_images)
         output_image_sequence += interpolated_images
-    output_image_sequence += [img.open(folder_of_input_frames + "/" + image_prefix + str(end_index) + ".png")]
+    output_image_sequence += [img.open(folder_of_input_frames + "/" + input_image_prefix + str(end_index) + ".png")]
 
     for i, image in enumerate(output_image_sequence):
-        image.save(directory_for_results + "/final_frame_" + str(i) + ".png")
+        image.save(directory_for_results + "/" + output_image_prefix + str(i+start_index) + ".png")
 
 
 def make_grayscale_image_sharper(image: Image) -> Image:
@@ -286,7 +297,47 @@ def make_grayscale_image_sharper_in_selected_pixels(image: Image,
     return img.fromarray(output_sharpen_image.astype("uint8"))
 
 
-def put_images_side_by_side(image_folder: str,
+def put_images_side_by_side(image_folder_for_original_images: str,
+                            image_folder_for_improved_images: str,
+                            name_of_left_frame: str,
+                            name_of_right_frame: str,
+                            start_index: int,
+                            amount_of_interpolated_frames: int,
+                            directory_for_results: str,
+                            image_prefix: str) -> None:
+    """Concatenate two set of images side by side. The images should have the same height and width and amount of
+    channels. Results are stored into current working directory.
+
+    Args:
+        image_folder_for_original_images (str): Folder where original frames are stored.
+        image_folder_for_improved_images (str): Folder where improved frames are stored.
+        name_of_left_frame (str): Name of image to placed on a left side of resulting image.
+        name_of_right_frame (str): Name of image to placed on a right side of resulting image.
+        start_index (int): Starting index of image.
+        directory_for_results (str): Create directory where output frames are stored.
+        image_prefix (str): Image prefix of output frames.
+    """
+    os.mkdir(directory_for_results)
+    index_improved_image = start_index
+    index_original_image = start_index
+    while os.path.isfile(image_folder_for_improved_images
+                         + "/"
+                         + name_of_right_frame
+                         + str(index_improved_image)
+                         + ".png"):
+        original_frame = cv2.imread(os.path.join(image_folder_for_original_images,
+                                                 name_of_left_frame + str(index_original_image) + ".png"))
+        upgraded_frame = cv2.imread(os.path.join(image_folder_for_improved_images,
+                                                 name_of_right_frame + str(index_improved_image) + ".png"))
+        concatenated_frame = np.concatenate((original_frame, upgraded_frame), axis=1)
+        cv2.imwrite(directory_for_results + "/" + image_prefix + str(index_improved_image) + ".png",
+                    concatenated_frame)
+        index_improved_image += 1
+        if index_improved_image % (amount_of_interpolated_frames+start_index) == 0:
+            index_original_image += 1
+
+
+def put_images_side_by_side_initial(image_folder: str,
                             name_of_left_frame: str,
                             name_of_right_frame: str,
                             index: int,
@@ -317,7 +368,8 @@ def sharper_frames_along_most_significant_edges(directory_for_results: str,
                                                 folder_of_input_frames: str,
                                                 image_prefix: str,
                                                 threshold_of_significance: float,
-                                                min_value_of_significant_edge: int):
+                                                min_value_of_significant_edge: int,
+                                                amount_of_original_frames: int):
     """Iterates over frames. Pixels of significant edges are detected in every frame. Image is sharpened in positions of
     these pixels.
 
@@ -329,9 +381,10 @@ def sharper_frames_along_most_significant_edges(directory_for_results: str,
             have maximum value of brightness 255.
         min_value_of_significant_edge (int): Edges with brightness with value higher than is specified by this parameter
             will be considered significant.
+        amount_of_original_frames (int): Amount of original frames.
     """
     os.mkdir(directory_for_results)
-    for i in range(2, 12):
+    for i in range(2, amount_of_original_frames-2):
         original_frame = img.open(folder_of_input_frames + "/" + image_prefix + str(i) + ".png")
         original_frame_grayscale = convert_rgb_image_to_grayscale_image(original_frame)
         frame_of_edges = calculate_gradient_of_grayscale_image(original_frame_grayscale, threshold_of_significance)
@@ -340,60 +393,83 @@ def sharper_frames_along_most_significant_edges(directory_for_results: str,
         enhanced_image.save(directory_for_results + "/" + "enhanced_image_" + str(i) + ".png")
 
 
-def split_video_to_frames(directory_for_results: str, frame_output_format: str, path_to_video: str) -> None:
+def split_video_to_frames(directory_for_results: str,
+                          path_to_video: str,
+                          image_prefix: str) -> int:
     """Split video into individual frames.
 
     Args:
         directory_for_results (str): Create directory where output frames are stored.
-        frame_output_format (str): Format of output frames. (jpg, png, bmp etc...)
         path_to_video (str): Absolute path to input video.
+        image_prefix (str): Prefix of image from provided video.
+
+    Returns:
+        int: Amount of frames in input video.
     """
     cap = cv2.VideoCapture(path_to_video)
     frame_index = 0
     success, frame = cap.read()
     os.mkdir(directory_for_results)
     while success:  # Capture frame-by-frame
-        cv2.imwrite(directory_for_results + '/frame_' + str(frame_index) + "." + frame_output_format, frame)
+        cv2.imwrite(directory_for_results + '/' + image_prefix + str(frame_index) + ".png", frame)
         frame_index += 1
         success, frame = cap.read()
+    return frame_index
 
 
 def main() -> None:
-    """
-    build_video(image_folder='Chessboard_images',
-                prefix_of_image_name='Chessboard_',
-                image_format="png",
-                frames_per_second=1,
-                name_of_output_video="chessboard_moves")
-    split_video_to_frames("chess_video",
-                          frame_output_format="png",
-                          path_to_video='C:/Users/A200179575/Python_Projects/personal/video_maker/chessboard_moves.avi')
-    """
+    path_to_input_video = "lock_video.avi"
+    dir_for_frames_of_input_video = "lock_video_original_frames"
     dir_for_denoised_frames = "denoised_frames"
-    """
-    denoise_video(path_to_video="chessboard_moves.avi", directory_for_results=dir_for_denoised_frames)
+    dir_for_sharpened_images = "enhanced_images"
+    dir_for_final_frames = "final_frames"
+    dir_for_parallel_frames = "parallel_frames"
 
-    directory_of_frame_edges = "frames_of_edges"
-    os.mkdir(directory_of_frame_edges)
-    for img_index in range(2, 12):
-        grayscale_image = convert_rgb_image_to_grayscale_image(
-                                                img.open("denoised_frames/denoised_frame_" + str(img_index) + ".png"))
+    image_prefix_of_original_frames = "original_frame_"
+    image_prefix_of_denoised_frames = "denoised_frame_"
+    image_prefix_of_enhanced_image = "enhanced_image_"
+    image_prefix_of_parallel_frames = "parallel_frames_"
+    image_prefix_of_final_image = "final_frame_"
 
-        frame_of_edges = calculate_gradient_of_grayscale_image(grayscale_image)
-        frame_of_edges.save(directory_of_frame_edges + "/edges_" + str(img_index) + ".png")
-    """
-    sharper_frames_along_most_significant_edges(directory_for_results="enhanced_images",
+    amount_of_interpolated_frames = 100
+
+    amount_of_original_frames = split_video_to_frames(directory_for_results=dir_for_frames_of_input_video,
+                                                      path_to_video=path_to_input_video,
+                                                      image_prefix=image_prefix_of_original_frames)
+
+    denoise_video(path_to_video=path_to_input_video,
+                  directory_for_results=dir_for_denoised_frames,
+                  image_prefix_of_denoised_frames=image_prefix_of_denoised_frames)
+
+    sharper_frames_along_most_significant_edges(directory_for_results=dir_for_sharpened_images,
                                                 folder_of_input_frames=dir_for_denoised_frames,
-                                                image_prefix="denoised_frame_",
+                                                image_prefix=image_prefix_of_denoised_frames,
                                                 threshold_of_significance=0.9,
-                                                min_value_of_significant_edge=200)
-    interpolate_sequence_of_images(directory_for_results="final_frames",
-                                   folder_of_input_frames="enhanced_images",
-                                   image_prefix="enhanced_image_")
+                                                min_value_of_significant_edge=200,
+                                                amount_of_original_frames=amount_of_original_frames)
 
-    interpolated_images = interpolate_images(img.open("Chessboard_0.png"), img.open("Chessboard_1.png"), 10)
-    for img_index, image in enumerate(interpolated_images):
-        image.save("interpolated_img_" + str(img_index) + ".png")
+    interpolate_sequence_of_images(directory_for_results=dir_for_final_frames,
+                                   folder_of_input_frames=dir_for_sharpened_images,
+                                   input_image_prefix=image_prefix_of_enhanced_image,
+                                   output_image_prefix=image_prefix_of_final_image,
+                                   amount_of_interpolated_images=amount_of_interpolated_frames,
+                                   amount_of_original_frames=amount_of_original_frames)
+
+    put_images_side_by_side(image_folder_for_original_images=dir_for_frames_of_input_video,
+                            image_folder_for_improved_images=dir_for_final_frames,
+                            name_of_left_frame=image_prefix_of_original_frames,
+                            name_of_right_frame=image_prefix_of_final_image,
+                            start_index=2,
+                            amount_of_interpolated_frames=amount_of_interpolated_frames,
+                            directory_for_results=dir_for_parallel_frames,
+                            image_prefix=image_prefix_of_parallel_frames)
+
+    build_video(image_folder=dir_for_parallel_frames,
+                prefix_of_image_name=image_prefix_of_parallel_frames,
+                image_format="png",
+                frames_per_second=53,
+                name_of_output_video="input_output_video",
+                start_index=2)
 
 
 if __name__ == "__main__":
